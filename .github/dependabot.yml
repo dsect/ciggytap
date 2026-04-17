@@ -1,0 +1,39 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /mobile
+    schedule:
+      interval: monthly
+    groups:
+      expo:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "@expo/*"
+          - "jest-expo"
+      react:
+        patterns:
+          - "react"
+          - "react-*"
+          - "@types/react"
+          - "react-test-renderer"
+      testing:
+        patterns:
+          - "@testing-library/*"
+          - "@types/jest"
+          - "jest"
+      typescript:
+        patterns:
+          - "typescript"
+          - "ts-*"
+          - "@types/*"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns:
+          - "*"
