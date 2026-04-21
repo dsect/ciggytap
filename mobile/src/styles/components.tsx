@@ -566,45 +566,6 @@ function getToastStyles(variant: ToastVariant) {
 // ErrorBanner Component (Styled inline error feedback)
 // ============================================================================
 
-interface ErrorBannerProps {
-  message: string;
-  testID?: string;
-}
-
-export function ErrorBanner({ message, testID }: ErrorBannerProps) {
-  const styles = getErrorBannerStyles();
-  return (
-    <View style={styles.container} testID={testID} accessibilityRole="alert">
-      <Text style={styles.icon}>⚠️</Text>
-      <Text style={styles.text}>{message}</Text>
-    </View>
-  );
-}
-
-function getErrorBannerStyles() {
-  return StyleSheet.create({
-    container: {
-      backgroundColor: Colors.error + '18',
-      borderWidth: 1,
-      borderColor: Colors.error + '50',
-      borderRadius: Radius.md,
-      paddingVertical: Spacing.md,
-      paddingHorizontal: Spacing.lg,
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: Spacing.sm,
-    },
-    icon: {
-      fontSize: 16,
-    },
-    text: {
-      ...Typography.body.sm,
-      color: Colors.error,
-      flex: 1,
-    },
-  });
-}
-
 // ============================================================================
 // LoadingSkeleton Component (Placeholder layout while loading)
 // ============================================================================
@@ -734,3 +695,120 @@ function getEmptyStateStyles() {
     },
   });
 }
+
+// ============================================================================
+// LoadingSpinner Component (Pulsing activity indicator)
+// ============================================================================
+
+export function LoadingSpinner() {
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.2, duration: 700, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [pulse]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale: pulse }] }}>
+      <ActivityIndicator size="large" color={Colors.primary[500]} />
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// AnimatedHistoryItem Component (Slide/fade in on mount)
+// ============================================================================
+
+interface AnimatedHistoryItemProps {
+  children: React.ReactNode;
+  index: number;
+}
+
+export function AnimatedHistoryItem({ children, index }: AnimatedHistoryItemProps) {
+  const translateY = useRef(new Animated.Value(12)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const delay = index * 35;
+    Animated.sequence([
+      Animated.delay(delay),
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: Transitions.base, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: Transitions.base, useNativeDriver: true }),
+      ]),
+    ]).start();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+// ============================================================================
+// ErrorBanner Component (Slides in from above with shake)
+// ============================================================================
+
+interface ErrorBannerProps {
+  message: string;
+}
+
+export function ErrorBanner({ message }: ErrorBannerProps) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(-8)).current;
+  const shakeX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    opacity.setValue(0);
+    translateY.setValue(-8);
+    shakeX.setValue(0);
+
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: Transitions.base, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: Transitions.base, useNativeDriver: true }),
+    ]).start(() => {
+      Animated.sequence([
+        Animated.timing(shakeX, { toValue: 6, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: -6, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: 4, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: -4, duration: 55, useNativeDriver: true }),
+        Animated.timing(shakeX, { toValue: 0, duration: 55, useNativeDriver: true }),
+      ]).start();
+    });
+  }, [message, opacity, translateY, shakeX]);
+
+  return (
+    <Animated.View
+      style={[
+        errorBannerStyles.container,
+        { opacity, transform: [{ translateY }, { translateX: shakeX }] },
+      ]}
+      accessibilityLiveRegion="polite"
+    >
+      <Text style={errorBannerStyles.text}>{message}</Text>
+    </Animated.View>
+  );
+}
+
+const errorBannerStyles = StyleSheet.create({
+  container: {
+    backgroundColor: Colors.error + '1A',
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: Colors.error + '40',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+  },
+  text: {
+    ...Typography.body.sm,
+    color: Colors.error,
+  },
+});

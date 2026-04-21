@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Accelerometer } from 'expo-sensors';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
+  Animated,
   Alert,
   Pressable,
   SafeAreaView,
@@ -30,6 +30,7 @@ import {
 } from './src/domain/ciggytap';
 import {
   Card,
+  AnimatedHistoryItem,
   EmptyState,
   ErrorBanner,
   LoadingSkeleton,
@@ -38,7 +39,7 @@ import {
   StyledText,
   Toast,
 } from './src/styles/components';
-import { Colors, Spacing, Typography } from './src/styles/tokens';
+import { Colors, Spacing, Transitions, Typography } from './src/styles/tokens';
 
 type ShakeStatus = 'initializing' | 'active' | 'unavailable' | 'disabled' | 'error';
 
@@ -69,8 +70,17 @@ export default function App() {
 
   const autoShakeEnabled = !__DEV__ || allowShakeInDev;
 
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    if (!successToast) return;
+    if (!isLoading) {
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: Transitions.slow,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLoading, contentOpacity]);
     const id = setTimeout(() => setSuccessToast(null), 2000);
     return () => clearTimeout(id);
   }, [successToast]);
