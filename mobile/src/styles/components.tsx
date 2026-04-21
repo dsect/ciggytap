@@ -2,8 +2,10 @@
  * Reusable styled components with consistent design tokens
  */
 
-import { Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
-import { Colors, Radius, Shadows, Spacing, Typography } from './tokens';
+import { useEffect, useRef } from 'react';
+import * as Haptics from 'expo-haptics';
+import { Animated, ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { Colors, Radius, Shadows, Spacing, Transitions, Typography } from './tokens';
 
 // ============================================================================
 // Button Component
@@ -361,6 +363,7 @@ interface ActionButtonGroupProps {
     subtext: string;
     variant: ButtonVariant;
     onPress: () => void;
+    disabled?: boolean;
     testID?: string;
   }>;
 }
@@ -380,6 +383,7 @@ export function ActionButtonGroup({ buttons }: ActionButtonGroupProps) {
           subtext={button.subtext}
           variant={button.variant}
           onPress={button.onPress}
+          disabled={button.disabled}
           testID={button.testID}
         />
       ))}
@@ -392,24 +396,59 @@ interface ActionButtonProps {
   subtext: string;
   variant: ButtonVariant;
   onPress: () => void;
+  disabled?: boolean;
   testID?: string;
 }
 
-function ActionButton({ label, subtext, variant, onPress, testID }: ActionButtonProps) {
+function ActionButton({ label, subtext, variant, onPress, disabled = false, testID }: ActionButtonProps) {
   const styles = getActionButtonStyles();
+  const scale = useRef(new Animated.Value(1)).current;
+
+  function handlePressIn() {
+    if (disabled) return;
+    scale.stopAnimation();
+    Animated.timing(scale, {
+      toValue: 0.97,
+      duration: Transitions.fast,
+      useNativeDriver: true,
+    }).start();
+  }
+
+  function handlePressOut() {
+    if (disabled) return;
+    scale.stopAnimation();
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.04, duration: 100, useNativeDriver: true }),
+      Animated.timing(scale, { toValue: 1, duration: Transitions.base, useNativeDriver: true }),
+    ]).start();
+  }
+
+  function handlePress() {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    onPress();
+  }
+
   return (
     <Pressable
-      style={({ pressed }) => [
-        styles[variant],
-        pressed && { transform: [{ scale: 0.98 }] },
-      ]}
-      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      onPress={handlePress}
+      disabled={disabled}
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${subtext}`}
+      accessibilityState={{ disabled }}
     >
-      <Text style={styles.buttonText}>{label}</Text>
-      <Text style={styles.buttonSubtext}>{subtext}</Text>
+      <Animated.View
+        style={[
+          styles[variant],
+          { transform: [{ scale }] },
+          disabled && { opacity: 0.5 },
+        ]}
+      >
+        <Text style={styles.buttonText}>{label}</Text>
+        <Text style={styles.buttonSubtext}>{subtext}</Text>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -446,6 +485,251 @@ function getActionButtonStyles() {
       ...Typography.body.sm,
       color: Colors.gray[100],
       marginTop: Spacing.xs,
+      textAlign: 'center',
+    },
+  });
+}
+
+// ============================================================================
+// Toast Component (Temporary success/error feedback)
+// ============================================================================
+
+export type ToastVariant = 'success' | 'error' | 'info';
+
+interface ToastProps {
+  message: string;
+  visible: boolean;
+  variant?: ToastVariant;
+}
+
+export function Toast({ message, visible, variant = 'success' }: ToastProps) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(-16)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    } else {
+      Animated.parallel([
+        Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -16, duration: 150, useNativeDriver: true }),
+      ]).start();
+    }
+  }, [visible, opacity, translateY]);
+
+  const styles = getToastStyles(variant);
+
+  return (
+    <Animated.View
+      style={[styles.container, { opacity, transform: [{ translateY }] }]}
+      accessibilityLiveRegion="polite"
+    >
+      <Text style={styles.text}>{message}</Text>
+    </Animated.View>
+  );
+}
+
+function getToastStyles(variant: ToastVariant) {
+  const variantColors = {
+    success: { bg: Colors.success, text: Colors.white },
+    error: { bg: Colors.error, text: Colors.white },
+    info: { bg: Colors.info, text: Colors.white },
+  };
+
+  const colors = variantColors[variant];
+
+  return StyleSheet.create({
+    container: {
+      position: 'absolute',
+      top: Spacing.xl,
+      left: Spacing.xl,
+      right: Spacing.xl,
+      backgroundColor: colors.bg,
+      borderRadius: Radius.lg,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      alignItems: 'center',
+      zIndex: 999,
+      ...Shadows.lg,
+    },
+    text: {
+      ...Typography.label.md,
+      color: colors.text,
+    },
+  });
+}
+
+// ============================================================================
+// ErrorBanner Component (Styled inline error feedback)
+// ============================================================================
+
+interface ErrorBannerProps {
+  message: string;
+  testID?: string;
+}
+
+export function ErrorBanner({ message, testID }: ErrorBannerProps) {
+  const styles = getErrorBannerStyles();
+  return (
+    <View style={styles.container} testID={testID} accessibilityRole="alert">
+      <Text style={styles.icon}>⚠️</Text>
+      <Text style={styles.text}>{message}</Text>
+    </View>
+  );
+}
+
+function getErrorBannerStyles() {
+  return StyleSheet.create({
+    container: {
+      backgroundColor: Colors.error + '18',
+      borderWidth: 1,
+      borderColor: Colors.error + '50',
+      borderRadius: Radius.md,
+      paddingVertical: Spacing.md,
+      paddingHorizontal: Spacing.lg,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: Spacing.sm,
+    },
+    icon: {
+      fontSize: 16,
+    },
+    text: {
+      ...Typography.body.sm,
+      color: Colors.error,
+      flex: 1,
+    },
+  });
+}
+
+// ============================================================================
+// LoadingSkeleton Component (Placeholder layout while loading)
+// ============================================================================
+
+export function LoadingSkeleton() {
+  const opacity = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.5, duration: 700, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => anim.stop();
+  }, [opacity]);
+
+  const styles = getSkeletonStyles();
+
+  return (
+    <Animated.View style={[styles.content, { opacity }]}>
+      <View style={styles.titleBar} />
+      <View style={styles.subtitleBar} />
+      <View style={styles.buttonGroup}>
+        <View style={[styles.button, { backgroundColor: Colors.primary[200] }]} />
+        <View style={[styles.button, { backgroundColor: Colors.secondary[200] }]} />
+        <View style={[styles.button, { backgroundColor: Colors.accent[200] }]} />
+      </View>
+      <View style={styles.panel}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={styles.row} />
+        ))}
+      </View>
+      <View style={styles.panel}>
+        {[0, 1, 2].map((i) => (
+          <View key={i} style={styles.row} />
+        ))}
+      </View>
+    </Animated.View>
+  );
+}
+
+function getSkeletonStyles() {
+  return StyleSheet.create({
+    content: {
+      padding: Spacing.xl,
+      gap: Spacing.lg,
+    },
+    titleBar: {
+      height: 40,
+      width: '55%',
+      backgroundColor: Colors.gray[200],
+      borderRadius: Radius.sm,
+    },
+    subtitleBar: {
+      height: 20,
+      width: '40%',
+      backgroundColor: Colors.gray[200],
+      borderRadius: Radius.sm,
+      marginBottom: Spacing.lg,
+    },
+    buttonGroup: {
+      gap: Spacing.md,
+    },
+    button: {
+      height: 72,
+      borderRadius: Radius.lg,
+    },
+    panel: {
+      backgroundColor: Colors.surface,
+      borderRadius: Radius.lg,
+      padding: Spacing.lg,
+      gap: Spacing.sm,
+      borderWidth: 1,
+      borderColor: Colors.border,
+    },
+    row: {
+      height: 18,
+      backgroundColor: Colors.gray[200],
+      borderRadius: Radius.xs,
+    },
+  });
+}
+
+// ============================================================================
+// EmptyState Component (Improved empty content placeholder)
+// ============================================================================
+
+interface EmptyStateProps {
+  message: string;
+  subtext?: string;
+  testID?: string;
+}
+
+export function EmptyState({ message, subtext, testID }: EmptyStateProps) {
+  const styles = getEmptyStateStyles();
+  return (
+    <View style={styles.container} testID={testID}>
+      <Text style={styles.icon}>✦</Text>
+      <Text style={styles.message}>{message}</Text>
+      {subtext ? <Text style={styles.subtext}>{subtext}</Text> : null}
+    </View>
+  );
+}
+
+function getEmptyStateStyles() {
+  return StyleSheet.create({
+    container: {
+      alignItems: 'center',
+      paddingVertical: Spacing['2xl'],
+      gap: Spacing.sm,
+    },
+    icon: {
+      fontSize: 22,
+      color: Colors.gray[400],
+    },
+    message: {
+      ...Typography.body.md,
+      color: Colors.gray[600],
+      textAlign: 'center',
+    },
+    subtext: {
+      ...Typography.body.sm,
+      color: Colors.gray[400],
       textAlign: 'center',
     },
   });

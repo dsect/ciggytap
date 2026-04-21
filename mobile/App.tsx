@@ -28,7 +28,16 @@ import {
   type EventRecord,
   type EventSource,
 } from './src/domain/ciggytap';
-import { Card, MetricRow, Panel, StyledText } from './src/styles/components';
+import {
+  Card,
+  EmptyState,
+  ErrorBanner,
+  LoadingSkeleton,
+  MetricRow,
+  Panel,
+  StyledText,
+  Toast,
+} from './src/styles/components';
 import { Colors, Spacing, Typography } from './src/styles/tokens';
 
 type ShakeStatus = 'initializing' | 'active' | 'unavailable' | 'disabled' | 'error';
@@ -56,8 +65,15 @@ export default function App() {
   const [shakeStatus, setShakeStatus] = useState<ShakeStatus>('initializing');
   const [lastAutoShakeAtMs, setLastAutoShakeAtMs] = useState(0);
   const [allowShakeInDev, setAllowShakeInDev] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const autoShakeEnabled = !__DEV__ || allowShakeInDev;
+
+  useEffect(() => {
+    if (!successToast) return;
+    const id = setTimeout(() => setSuccessToast(null), 2000);
+    return () => clearTimeout(id);
+  }, [successToast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -115,6 +131,14 @@ export default function App() {
 
   const recordAction = useCallback((action: ActionType, source: EventSource = 'manual') => {
     setEvents((previousEvents) => [createEvent(action, source), ...previousEvents]);
+    if (source === 'manual') {
+      const toastMessages: Record<ActionType, string> = {
+        tap: '✓ Moment recorded',
+        shake_it_off: '✓ Shaking it off!',
+        tap_out: '✓ Tapped out — well done',
+      };
+      setSuccessToast(toastMessages[action]);
+    }
   }, []);
 
   useEffect(() => {
@@ -197,9 +221,9 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1E6B62" />
-        <Text style={styles.loadingText}>Loading CiggyTap...</Text>
+      <SafeAreaView style={styles.screen}>
+        <StatusBar style="dark" />
+        <LoadingSkeleton />
       </SafeAreaView>
     );
   }
@@ -207,11 +231,12 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
+      <Toast message={successToast ?? ''} visible={successToast !== null} />
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>CiggyTap</Text>
         <Text style={styles.subtitle}>One tap at a time.</Text>
 
-        {storageError ? <Text style={styles.errorText}>{storageError}</Text> : null}
+        {storageError ? <ErrorBanner message={storageError} /> : null}
 
         <ActionButtonGroup
           buttons={[
@@ -265,6 +290,10 @@ export default function App() {
               onPress={() => {
                 setAllowShakeInDev((enabled) => !enabled);
               }}
+              accessibilityRole="switch"
+              accessibilityLabel={allowShakeInDev ? 'Disable shake detection in dev mode' : 'Enable shake detection in dev mode'}
+              accessibilityState={{ checked: allowShakeInDev }}
+              style={({ pressed }) => pressed && styles.pressedLink}
             >
               <Text style={styles.clearLink}>
                 {allowShakeInDev ? 'Disable shake detection in dev mode' : 'Enable shake detection in dev mode'}
@@ -279,25 +308,40 @@ export default function App() {
               {getEventLabel(latestEvent)} at {formatEventTime(latestEvent.createdAt)}
             </StyledText>
           ) : (
-            <StyledText variant="bodySm" color="muted">No moments yet.</StyledText>
+            <EmptyState
+              message="No moments yet."
+              subtext="Use the buttons above to record your first moment."
+            />
           )}
         </Panel>
 
         <Card>
           <View style={styles.historyHeader}>
             <Text style={styles.panelTitle}>Recent history</Text>
-            <Pressable onPress={clearHistory}>
+            <Pressable
+              onPress={clearHistory}
+              accessibilityRole="button"
+              accessibilityLabel="Clear history"
+              accessibilityHint="Opens a confirmation dialog to remove all saved events"
+              style={({ pressed }) => pressed && styles.pressedLink}
+            >
               <Text style={styles.clearLink}>Clear</Text>
             </Pressable>
           </View>
-          {events.slice(0, 10).map((event) => (
-            <MetricRow
-              key={event.id}
-              label={getEventLabel(event)}
-              value={formatEventTime(event.createdAt)}
+          {events.length === 0 ? (
+            <EmptyState
+              message="No saved events yet."
+              subtext="Start tapping to see your history here."
             />
-          ))}
-          {events.length === 0 ? <StyledText variant="bodySm" color="muted">No saved events.</StyledText> : null}
+          ) : (
+            events.slice(0, 10).map((event) => (
+              <MetricRow
+                key={event.id}
+                label={getEventLabel(event)}
+                value={formatEventTime(event.createdAt)}
+              />
+            ))
+          )}
         </Card>
       </ScrollView>
     </SafeAreaView>
@@ -305,17 +349,6 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: Colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.md,
-  },
-  loadingText: {
-    ...Typography.body.lg,
-    color: Colors.gray[700],
-  },
   screen: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -333,10 +366,6 @@ const styles = StyleSheet.create({
     color: Colors.secondary[700],
     marginBottom: Spacing.lg,
   },
-  errorText: {
-    ...Typography.body.sm,
-    color: Colors.error,
-  },
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -350,5 +379,8 @@ const styles = StyleSheet.create({
   clearLink: {
     ...Typography.label.md,
     color: Colors.accent[700],
+  },
+  pressedLink: {
+    opacity: 0.6,
   },
 });
