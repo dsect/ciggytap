@@ -28,6 +28,8 @@ import {
   type EventRecord,
   type EventSource,
 } from './src/domain/ciggytap';
+import { Card, MetricRow, Panel, StyledText } from './src/styles/components';
+import { Colors, Spacing, Typography } from './src/styles/tokens';
 
 type ShakeStatus = 'initializing' | 'active' | 'unavailable' | 'disabled' | 'error';
 
@@ -234,40 +236,29 @@ export default function App() {
           ]}
         />
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Today</Text>
-          <Text style={styles.metric}>Tap: {todayStats.tap}</Text>
-          <Text style={styles.metric}>Shake It Off: {todayStats.shakeItOff}</Text>
-          <Text style={styles.metric}>Tap Out: {todayStats.tapOut}</Text>
-          <Text style={styles.metric}>Total today: {todayStats.total}</Text>
-          <Text style={styles.metric}>Lifetime moments: {events.length}</Text>
-        </View>
+        <Panel title="Today">
+          <MetricRow label="Tap" value={todayStats.tap} />
+          <MetricRow label="Shake It Off" value={todayStats.shakeItOff} />
+          <MetricRow label="Tap Out" value={todayStats.tapOut} />
+          <MetricRow label="Total today" value={todayStats.total} />
+          <MetricRow label="Lifetime moments" value={events.length} />
+        </Panel>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Smoke-free analytics</Text>
-          <Text style={styles.metric}>Current streak: {sessionAnalytics.currentStreak} moments</Text>
-          <Text style={styles.metric}>
-            Current session: {formatDuration(sessionAnalytics.currentSessionDurationMs)}
-          </Text>
-          <Text style={styles.metric}>
-            Current session moments: {sessionAnalytics.currentSessionMoments}
-          </Text>
-          <Text style={styles.metric}>
-            Best session: {formatDuration(sessionAnalytics.bestSessionDurationMs)}
-          </Text>
-          <Text style={styles.metric}>Completed sessions: {sessionAnalytics.sessionsCompleted}</Text>
-          <Text style={styles.metric}>
-            Avg moments before tap out: {sessionAnalytics.averageMomentsBeforeTapOut}
-          </Text>
-        </View>
+        <Panel title="Smoke-free analytics">
+          <MetricRow label="Current streak" value={`${sessionAnalytics.currentStreak} moments`} />
+          <MetricRow label="Current session" value={formatDuration(sessionAnalytics.currentSessionDurationMs)} />
+          <MetricRow label="Session moments" value={sessionAnalytics.currentSessionMoments} />
+          <MetricRow label="Best session" value={formatDuration(sessionAnalytics.bestSessionDurationMs)} />
+          <MetricRow label="Completed sessions" value={sessionAnalytics.sessionsCompleted} />
+          <MetricRow label="Avg before tap out" value={sessionAnalytics.averageMomentsBeforeTapOut} />
+        </Panel>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Device shake</Text>
-          <Text style={styles.metric}>{getShakeStatusMessage(shakeStatus)}</Text>
+        <Panel title="Device shake">
+          <StyledText variant="bodyMd" color="secondary">{getShakeStatusMessage(shakeStatus)}</StyledText>
           {__DEV__ ? (
-            <Text style={styles.devNote}>
+            <StyledText variant="bodyXs" color="muted">
               Expo dev mode maps shake to the developer menu. Keep this off while debugging.
-            </Text>
+            </StyledText>
           ) : null}
           {__DEV__ ? (
             <Pressable
@@ -280,20 +271,19 @@ export default function App() {
               </Text>
             </Pressable>
           ) : null}
-        </View>
+        </Panel>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Latest moment</Text>
+        <Panel title="Latest moment">
           {latestEvent ? (
-            <Text style={styles.latest}>
+            <StyledText variant="bodyMd" color="secondary">
               {getEventLabel(latestEvent)} at {formatEventTime(latestEvent.createdAt)}
-            </Text>
+            </StyledText>
           ) : (
-            <Text style={styles.empty}>No moments yet.</Text>
+            <StyledText variant="bodySm" color="muted">No moments yet.</StyledText>
           )}
-        </View>
+        </Panel>
 
-        <View style={styles.panel}>
+        <Card>
           <View style={styles.historyHeader}>
             <Text style={styles.panelTitle}>Recent history</Text>
             <Pressable onPress={clearHistory}>
@@ -301,13 +291,14 @@ export default function App() {
             </Pressable>
           </View>
           {events.slice(0, 10).map((event) => (
-            <View key={event.id} style={styles.eventRow}>
-              <Text style={styles.eventLabel}>{getEventLabel(event)}</Text>
-              <Text style={styles.eventTime}>{formatEventTime(event.createdAt)}</Text>
-            </View>
+            <MetricRow
+              key={event.id}
+              label={getEventLabel(event)}
+              value={formatEventTime(event.createdAt)}
+            />
           ))}
-          {events.length === 0 ? <Text style={styles.empty}>No saved events.</Text> : null}
-        </View>
+          {events.length === 0 ? <StyledText variant="bodySm" color="muted">No saved events.</StyledText> : null}
+        </Card>
       </ScrollView>
     </SafeAreaView>
   );
@@ -316,92 +307,48 @@ export default function App() {
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    backgroundColor: '#F2F3EE',
+    backgroundColor: Colors.background,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: Spacing.md,
   },
   loadingText: {
-    fontSize: 16,
-    color: '#2D3A39',
+    ...Typography.body.lg,
+    color: Colors.gray[700],
   },
   screen: {
     flex: 1,
-    backgroundColor: '#F2F3EE',
+    backgroundColor: Colors.background,
   },
   content: {
-    padding: 18,
-    gap: 14,
+    padding: Spacing.lg,
+    gap: Spacing.md,
   },
   title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#1D3F3A',
+    ...Typography.heading.xxl,
+    color: Colors.secondary[900],
   },
   subtitle: {
-    fontSize: 16,
-    color: '#2E5A55',
-    marginBottom: 8,
+    ...Typography.body.lg,
+    color: Colors.secondary[700],
+    marginBottom: Spacing.sm,
   },
   errorText: {
-    color: '#9E2F2F',
-    fontSize: 14,
-  },
-  panel: {
-    backgroundColor: '#FDFCF7',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2DFD3',
-  },
-  panelTitle: {
-    color: '#223534',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  metric: {
-    fontSize: 15,
-    color: '#344848',
-    marginBottom: 4,
-  },
-  latest: {
-    fontSize: 15,
-    color: '#2D4443',
-  },
-  empty: {
-    color: '#5C6A68',
-    fontSize: 14,
-  },
-  devNote: {
-    fontSize: 13,
-    color: '#5D6765',
-    marginBottom: 10,
+    ...Typography.body.sm,
+    color: Colors.error,
   },
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  panelTitle: {
+    ...Typography.heading.md,
+    color: Colors.gray[900],
   },
   clearLink: {
-    color: '#7C3025',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  eventRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#ECE8DB',
-  },
-  eventLabel: {
-    fontSize: 14,
-    color: '#2E4241',
-    fontWeight: '600',
-  },
-  eventTime: {
-    fontSize: 13,
-    color: '#5D6765',
+    ...Typography.label.md,
+    color: Colors.accent[700],
   },
 });
