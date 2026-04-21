@@ -52,6 +52,11 @@ export const Colors = {
   error: '#EF4444',
   info: '#3B82F6',
 
+  // Accessible text variants for semantic colors on light backgrounds (WCAG AA ≥ 4.5:1)
+  errorText: '#B91C1C',   // 6.3:1 on surface
+  warningText: '#92400E', // 6.9:1 on surface
+  successText: '#15803D', // 4.9:1 on surface
+
   // Neutral palette
   white: '#FFFFFF',
   black: '#000000',

@@ -66,7 +66,7 @@ function getButtonStyles(variant: ButtonVariant, size: ButtonSize, disabled: boo
     sm: {
       paddingVertical: Spacing.sm,
       paddingHorizontal: Spacing.md,
-      minHeight: 40,
+      minHeight: 44,
     },
     md: {
       paddingVertical: Spacing.md,
@@ -242,8 +242,8 @@ function getTextStyles(variant: TextVariant, color: TextColor) {
     primary: Colors.gray[900],
     secondary: Colors.gray[700],
     muted: Colors.gray[500],
-    error: Colors.error,
-    success: Colors.success,
+    error: Colors.errorText,
+    success: Colors.successText,
   };
 
   return StyleSheet.create({
@@ -267,7 +267,12 @@ interface MetricRowProps {
 export function MetricRow({ label, value, testID }: MetricRowProps) {
   const styles = getMetricRowStyles();
   return (
-    <View style={styles.container} testID={testID}>
+    <View
+      style={styles.container}
+      testID={testID}
+      accessible={true}
+      accessibilityLabel={`${label}: ${String(value)}`}
+    >
       <Text style={styles.label}>{label}</Text>
       <Text style={styles.value}>{value}</Text>
     </View>
@@ -324,15 +329,15 @@ function getBadgeStyles(variant: BadgeVariant) {
     },
     success: {
       bg: Colors.success + '20',
-      text: Colors.success,
+      text: Colors.successText,
     },
     warning: {
       bg: Colors.warning + '20',
-      text: Colors.warning,
+      text: Colors.warningText,
     },
     error: {
       bg: Colors.error + '20',
-      text: Colors.error,
+      text: Colors.errorText,
     },
   };
 
@@ -483,7 +488,8 @@ function getActionButtonStyles() {
     },
     buttonSubtext: {
       ...Typography.body.sm,
-      color: Colors.gray[100],
+      color: Colors.white,
+      fontWeight: '600',
       marginTop: Spacing.xs,
       textAlign: 'center',
     },
@@ -587,7 +593,7 @@ export function LoadingSkeleton() {
   const styles = getSkeletonStyles();
 
   return (
-    <Animated.View style={[styles.content, { opacity }]}>
+    <Animated.View style={[styles.content, { opacity }]} accessibilityLabel="Loading, please wait" accessibilityLiveRegion="polite">
       <View style={styles.titleBar} />
       <View style={styles.subtitleBar} />
       <View style={styles.buttonGroup}>
@@ -665,7 +671,7 @@ export function EmptyState({ message, subtext, testID }: EmptyStateProps) {
   const styles = getEmptyStateStyles();
   return (
     <View style={styles.container} testID={testID}>
-      <Text style={styles.icon}>✦</Text>
+      <Text style={styles.icon} accessibilityElementsHidden={true} importantForAccessibility="no">✦</Text>
       <Text style={styles.message}>{message}</Text>
       {subtext ? <Text style={styles.subtext}>{subtext}</Text> : null}
     </View>
@@ -690,7 +696,7 @@ function getEmptyStateStyles() {
     },
     subtext: {
       ...Typography.body.sm,
-      color: Colors.gray[400],
+      color: Colors.gray[500],
       textAlign: 'center',
     },
   });
@@ -791,7 +797,8 @@ export function ErrorBanner({ message }: ErrorBannerProps) {
         errorBannerStyles.container,
         { opacity, transform: [{ translateY }, { translateX: shakeX }] },
       ]}
-      accessibilityLiveRegion="polite"
+      accessibilityRole="alert"
+      accessibilityLiveRegion="assertive"
     >
       <Text style={errorBannerStyles.text}>{message}</Text>
     </Animated.View>
@@ -809,6 +816,6 @@ const errorBannerStyles = StyleSheet.create({
   },
   text: {
     ...Typography.body.sm,
-    color: Colors.error,
+    color: Colors.errorText,
   },
 });

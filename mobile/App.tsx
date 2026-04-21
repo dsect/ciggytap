@@ -247,7 +247,7 @@ export default function App() {
       <Toast message={successToast ?? ''} visible={successToast !== null} />
       <Animated.View style={[{ flex: 1 }, { opacity: contentOpacity }]}>
         <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>CiggyTap</Text>
+        <Text style={styles.title} accessibilityRole="header">CiggyTap</Text>
         <Text style={styles.subtitle}>One tap at a time.</Text>
 
         {storageError ? <ErrorBanner message={storageError} /> : null}
@@ -307,6 +307,7 @@ export default function App() {
               accessibilityRole="switch"
               accessibilityLabel={allowShakeInDev ? 'Disable shake detection in dev mode' : 'Enable shake detection in dev mode'}
               accessibilityState={{ checked: allowShakeInDev }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={({ pressed }) => pressed && styles.pressedLink}
             >
               <Text style={styles.clearLink}>
@@ -337,6 +338,7 @@ export default function App() {
               accessibilityRole="button"
               accessibilityLabel="Clear history"
               accessibilityHint="Opens a confirmation dialog to remove all saved events"
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={({ pressed }) => pressed && styles.pressedLink}
             >
               <Text style={styles.clearLink}>Clear</Text>
