@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { ActionButtonGroup } from './src/styles/components';
 import {
   ACTION_LABELS,
   createEvent,
@@ -210,37 +211,28 @@ export default function App() {
 
         {storageError ? <Text style={styles.errorText}>{storageError}</Text> : null}
 
-        <View style={styles.actions}>
-          <Pressable
-            style={[styles.button, styles.tapButton]}
-            onPress={() => {
-              recordAction('tap');
-            }}
-          >
-            <Text style={styles.buttonText}>Tap</Text>
-            <Text style={styles.buttonSubtext}>Acknowledge the urge.</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.button, styles.shakeButton]}
-            onPress={() => {
-              recordAction('shake_it_off');
-            }}
-          >
-            <Text style={styles.buttonText}>{ACTION_LABELS.shake_it_off}</Text>
-            <Text style={styles.buttonSubtext}>Disrupt the moment.</Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.button, styles.tapOutButton]}
-            onPress={() => {
-              recordAction('tap_out');
-            }}
-          >
-            <Text style={styles.buttonText}>Tap Out</Text>
-            <Text style={styles.buttonSubtext}>End honestly.</Text>
-          </Pressable>
-        </View>
+        <ActionButtonGroup
+          buttons={[
+            {
+              label: 'Tap',
+              subtext: 'Acknowledge the urge.',
+              variant: 'primary',
+              onPress: () => { recordAction('tap'); },
+            },
+            {
+              label: ACTION_LABELS.shake_it_off,
+              subtext: 'Disrupt the moment.',
+              variant: 'secondary',
+              onPress: () => { recordAction('shake_it_off'); },
+            },
+            {
+              label: 'Tap Out',
+              subtext: 'End honestly.',
+              variant: 'accent',
+              onPress: () => { recordAction('tap_out'); },
+            },
+          ]}
+        />
 
         <View style={styles.panel}>
           <Text style={styles.panelTitle}>Today</Text>
@@ -353,33 +345,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#9E2F2F',
-    fontSize: 14,
-  },
-  actions: {
-    gap: 10,
-  },
-  button: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-  },
-  tapButton: {
-    backgroundColor: '#2A7E74',
-  },
-  shakeButton: {
-    backgroundColor: '#4A5B7A',
-  },
-  tapOutButton: {
-    backgroundColor: '#8A5B4A',
-  },
-  buttonText: {
-    color: '#F8FAF7',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  buttonSubtext: {
-    color: '#E9F1EE',
-    marginTop: 4,
     fontSize: 14,
   },
   panel: {

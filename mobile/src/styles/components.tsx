@@ -366,7 +366,11 @@ interface ActionButtonGroupProps {
 }
 
 export function ActionButtonGroup({ buttons }: ActionButtonGroupProps) {
-  const styles = getActionButtonGroupStyles();
+  const styles = StyleSheet.create({
+    container: {
+      gap: Spacing.sm,
+    },
+  });
   return (
     <View style={styles.container}>
       {buttons.map((button, index) => (
