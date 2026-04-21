@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Accelerometer } from 'expo-sensors';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
+  Animated,
   Alert,
   Pressable,
   SafeAreaView,
@@ -12,6 +12,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { ActionButtonGroup } from './src/styles/components';
 import {
   ACTION_LABELS,
   createEvent,
@@ -27,6 +28,18 @@ import {
   type EventRecord,
   type EventSource,
 } from './src/domain/ciggytap';
+import {
+  Card,
+  AnimatedHistoryItem,
+  EmptyState,
+  ErrorBanner,
+  LoadingSkeleton,
+  MetricRow,
+  Panel,
+  StyledText,
+  Toast,
+} from './src/styles/components';
+import { Colors, Spacing, Transitions, Typography } from './src/styles/tokens';
 
 type ShakeStatus = 'initializing' | 'active' | 'unavailable' | 'disabled' | 'error';
 
@@ -53,8 +66,27 @@ export default function App() {
   const [shakeStatus, setShakeStatus] = useState<ShakeStatus>('initializing');
   const [lastAutoShakeAtMs, setLastAutoShakeAtMs] = useState(0);
   const [allowShakeInDev, setAllowShakeInDev] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const autoShakeEnabled = !__DEV__ || allowShakeInDev;
+
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isLoading) {
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: Transitions.slow,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isLoading, contentOpacity]);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const id = setTimeout(() => setSuccessToast(null), 2000);
+    return () => clearTimeout(id);
+  }, [successToast]);
 
   useEffect(() => {
     let isMounted = true;
@@ -112,6 +144,14 @@ export default function App() {
 
   const recordAction = useCallback((action: ActionType, source: EventSource = 'manual') => {
     setEvents((previousEvents) => [createEvent(action, source), ...previousEvents]);
+    if (source === 'manual') {
+      const toastMessages: Record<ActionType, string> = {
+        tap: '✓ Moment recorded',
+        shake_it_off: '✓ Shaking it off!',
+        tap_out: '✓ Tapped out — well done',
+      };
+      setSuccessToast(toastMessages[action]);
+    }
   }, []);
 
   useEffect(() => {
@@ -194,9 +234,9 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#1E6B62" />
-        <Text style={styles.loadingText}>Loading CiggyTap...</Text>
+      <SafeAreaView style={styles.screen}>
+        <StatusBar style="dark" />
+        <LoadingSkeleton />
       </SafeAreaView>
     );
   }
@@ -204,239 +244,161 @@ export default function App() {
   return (
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.title}>CiggyTap</Text>
+      <Toast message={successToast ?? ''} visible={successToast !== null} />
+      <Animated.View style={[{ flex: 1 }, { opacity: contentOpacity }]}>
+        <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.title} accessibilityRole="header">CiggyTap</Text>
         <Text style={styles.subtitle}>One tap at a time.</Text>
 
-        {storageError ? <Text style={styles.errorText}>{storageError}</Text> : null}
+        {storageError ? <ErrorBanner message={storageError} /> : null}
 
-        <View style={styles.actions}>
-          <Pressable
-            style={[styles.button, styles.tapButton]}
-            onPress={() => {
-              recordAction('tap');
-            }}
-          >
-            <Text style={styles.buttonText}>Tap</Text>
-            <Text style={styles.buttonSubtext}>Acknowledge the urge.</Text>
-          </Pressable>
+        <ActionButtonGroup
+          buttons={[
+            {
+              label: 'Tap',
+              subtext: 'Acknowledge the urge.',
+              variant: 'primary',
+              onPress: () => { recordAction('tap'); },
+            },
+            {
+              label: ACTION_LABELS.shake_it_off,
+              subtext: 'Disrupt the moment.',
+              variant: 'secondary',
+              onPress: () => { recordAction('shake_it_off'); },
+            },
+            {
+              label: 'Tap Out',
+              subtext: 'End honestly.',
+              variant: 'accent',
+              onPress: () => { recordAction('tap_out'); },
+            },
+          ]}
+        />
 
-          <Pressable
-            style={[styles.button, styles.shakeButton]}
-            onPress={() => {
-              recordAction('shake_it_off');
-            }}
-          >
-            <Text style={styles.buttonText}>{ACTION_LABELS.shake_it_off}</Text>
-            <Text style={styles.buttonSubtext}>Disrupt the moment.</Text>
-          </Pressable>
+        <Panel title="Today">
+          <MetricRow label="Tap" value={todayStats.tap} />
+          <MetricRow label="Shake It Off" value={todayStats.shakeItOff} />
+          <MetricRow label="Tap Out" value={todayStats.tapOut} />
+          <MetricRow label="Total today" value={todayStats.total} />
+          <MetricRow label="Lifetime moments" value={events.length} />
+        </Panel>
 
-          <Pressable
-            style={[styles.button, styles.tapOutButton]}
-            onPress={() => {
-              recordAction('tap_out');
-            }}
-          >
-            <Text style={styles.buttonText}>Tap Out</Text>
-            <Text style={styles.buttonSubtext}>End honestly.</Text>
-          </Pressable>
-        </View>
+        <Panel title="Smoke-free analytics">
+          <MetricRow label="Current streak" value={`${sessionAnalytics.currentStreak} moments`} />
+          <MetricRow label="Current session" value={formatDuration(sessionAnalytics.currentSessionDurationMs)} />
+          <MetricRow label="Session moments" value={sessionAnalytics.currentSessionMoments} />
+          <MetricRow label="Best session" value={formatDuration(sessionAnalytics.bestSessionDurationMs)} />
+          <MetricRow label="Completed sessions" value={sessionAnalytics.sessionsCompleted} />
+          <MetricRow label="Avg before tap out" value={sessionAnalytics.averageMomentsBeforeTapOut} />
+        </Panel>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Today</Text>
-          <Text style={styles.metric}>Tap: {todayStats.tap}</Text>
-          <Text style={styles.metric}>Shake It Off: {todayStats.shakeItOff}</Text>
-          <Text style={styles.metric}>Tap Out: {todayStats.tapOut}</Text>
-          <Text style={styles.metric}>Total today: {todayStats.total}</Text>
-          <Text style={styles.metric}>Lifetime moments: {events.length}</Text>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Smoke-free analytics</Text>
-          <Text style={styles.metric}>Current streak: {sessionAnalytics.currentStreak} moments</Text>
-          <Text style={styles.metric}>
-            Current session: {formatDuration(sessionAnalytics.currentSessionDurationMs)}
-          </Text>
-          <Text style={styles.metric}>
-            Current session moments: {sessionAnalytics.currentSessionMoments}
-          </Text>
-          <Text style={styles.metric}>
-            Best session: {formatDuration(sessionAnalytics.bestSessionDurationMs)}
-          </Text>
-          <Text style={styles.metric}>Completed sessions: {sessionAnalytics.sessionsCompleted}</Text>
-          <Text style={styles.metric}>
-            Avg moments before tap out: {sessionAnalytics.averageMomentsBeforeTapOut}
-          </Text>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Device shake</Text>
-          <Text style={styles.metric}>{getShakeStatusMessage(shakeStatus)}</Text>
+        <Panel title="Device shake">
+          <StyledText variant="bodyMd" color="secondary">{getShakeStatusMessage(shakeStatus)}</StyledText>
           {__DEV__ ? (
-            <Text style={styles.devNote}>
+            <StyledText variant="bodyXs" color="muted">
               Expo dev mode maps shake to the developer menu. Keep this off while debugging.
-            </Text>
+            </StyledText>
           ) : null}
           {__DEV__ ? (
             <Pressable
               onPress={() => {
                 setAllowShakeInDev((enabled) => !enabled);
               }}
+              accessibilityRole="switch"
+              accessibilityLabel={allowShakeInDev ? 'Disable shake detection in dev mode' : 'Enable shake detection in dev mode'}
+              accessibilityState={{ checked: allowShakeInDev }}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={({ pressed }) => pressed && styles.pressedLink}
             >
               <Text style={styles.clearLink}>
                 {allowShakeInDev ? 'Disable shake detection in dev mode' : 'Enable shake detection in dev mode'}
               </Text>
             </Pressable>
           ) : null}
-        </View>
+        </Panel>
 
-        <View style={styles.panel}>
-          <Text style={styles.panelTitle}>Latest moment</Text>
+        <Panel title="Latest moment">
           {latestEvent ? (
-            <Text style={styles.latest}>
+            <StyledText variant="bodyMd" color="secondary">
               {getEventLabel(latestEvent)} at {formatEventTime(latestEvent.createdAt)}
-            </Text>
+            </StyledText>
           ) : (
-            <Text style={styles.empty}>No moments yet.</Text>
+            <EmptyState
+              message="No moments yet."
+              subtext="Use the buttons above to record your first moment."
+            />
           )}
-        </View>
+        </Panel>
 
-        <View style={styles.panel}>
+        <Card>
           <View style={styles.historyHeader}>
             <Text style={styles.panelTitle}>Recent history</Text>
-            <Pressable onPress={clearHistory}>
+            <Pressable
+              onPress={clearHistory}
+              accessibilityRole="button"
+              accessibilityLabel="Clear history"
+              accessibilityHint="Opens a confirmation dialog to remove all saved events"
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={({ pressed }) => pressed && styles.pressedLink}
+            >
               <Text style={styles.clearLink}>Clear</Text>
             </Pressable>
           </View>
-          {events.slice(0, 10).map((event) => (
-            <View key={event.id} style={styles.eventRow}>
-              <Text style={styles.eventLabel}>{getEventLabel(event)}</Text>
-              <Text style={styles.eventTime}>{formatEventTime(event.createdAt)}</Text>
-            </View>
-          ))}
-          {events.length === 0 ? <Text style={styles.empty}>No saved events.</Text> : null}
-        </View>
+          {events.length === 0 ? (
+            <EmptyState
+              message="No saved events yet."
+              subtext="Start tapping to see your history here."
+            />
+          ) : (
+            events.slice(0, 10).map((event, index) => (
+              <AnimatedHistoryItem key={event.id} index={index}>
+                <MetricRow
+                  label={getEventLabel(event)}
+                  value={formatEventTime(event.createdAt)}
+                />
+              </AnimatedHistoryItem>
+            ))
+          )}
+        </Card>
       </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#F2F3EE',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#2D3A39',
-  },
   screen: {
     flex: 1,
-    backgroundColor: '#F2F3EE',
+    backgroundColor: Colors.background,
   },
   content: {
-    padding: 18,
-    gap: 14,
+    padding: Spacing.xl,
+    gap: Spacing.lg,
   },
   title: {
-    fontSize: 34,
-    fontWeight: '700',
-    color: '#1D3F3A',
+    ...Typography.heading.xxl,
+    color: Colors.secondary[900],
   },
   subtitle: {
-    fontSize: 16,
-    color: '#2E5A55',
-    marginBottom: 8,
-  },
-  errorText: {
-    color: '#9E2F2F',
-    fontSize: 14,
-  },
-  actions: {
-    gap: 10,
-  },
-  button: {
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 16,
-  },
-  tapButton: {
-    backgroundColor: '#2A7E74',
-  },
-  shakeButton: {
-    backgroundColor: '#4A5B7A',
-  },
-  tapOutButton: {
-    backgroundColor: '#8A5B4A',
-  },
-  buttonText: {
-    color: '#F8FAF7',
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  buttonSubtext: {
-    color: '#E9F1EE',
-    marginTop: 4,
-    fontSize: 14,
-  },
-  panel: {
-    backgroundColor: '#FDFCF7',
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#E2DFD3',
-  },
-  panelTitle: {
-    color: '#223534',
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 8,
-  },
-  metric: {
-    fontSize: 15,
-    color: '#344848',
-    marginBottom: 4,
-  },
-  latest: {
-    fontSize: 15,
-    color: '#2D4443',
-  },
-  empty: {
-    color: '#5C6A68',
-    fontSize: 14,
-  },
-  devNote: {
-    fontSize: 13,
-    color: '#5D6765',
-    marginBottom: 10,
+    ...Typography.body.lg,
+    color: Colors.secondary[700],
+    marginBottom: Spacing.lg,
   },
   historyHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  panelTitle: {
+    ...Typography.heading.md,
+    color: Colors.gray[900],
   },
   clearLink: {
-    color: '#7C3025',
-    fontWeight: '600',
-    fontSize: 14,
+    ...Typography.label.md,
+    color: Colors.accent[700],
   },
-  eventRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#ECE8DB',
-  },
-  eventLabel: {
-    fontSize: 14,
-    color: '#2E4241',
-    fontWeight: '600',
-  },
-  eventTime: {
-    fontSize: 13,
-    color: '#5D6765',
+  pressedLink: {
+    opacity: 0.6,
   },
 });
