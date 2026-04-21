@@ -81,6 +81,9 @@ export default function App() {
       }).start();
     }
   }, [isLoading, contentOpacity]);
+
+  useEffect(() => {
+    if (!successToast) return;
     const id = setTimeout(() => setSuccessToast(null), 2000);
     return () => clearTimeout(id);
   }, [successToast]);
@@ -242,7 +245,8 @@ export default function App() {
     <SafeAreaView style={styles.screen}>
       <StatusBar style="dark" />
       <Toast message={successToast ?? ''} visible={successToast !== null} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <Animated.View style={[{ flex: 1 }, { opacity: contentOpacity }]}>
+        <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>CiggyTap</Text>
         <Text style={styles.subtitle}>One tap at a time.</Text>
 
@@ -344,16 +348,18 @@ export default function App() {
               subtext="Start tapping to see your history here."
             />
           ) : (
-            events.slice(0, 10).map((event) => (
-              <MetricRow
-                key={event.id}
-                label={getEventLabel(event)}
-                value={formatEventTime(event.createdAt)}
-              />
+            events.slice(0, 10).map((event, index) => (
+              <AnimatedHistoryItem key={event.id} index={index}>
+                <MetricRow
+                  label={getEventLabel(event)}
+                  value={formatEventTime(event.createdAt)}
+                />
+              </AnimatedHistoryItem>
             ))
           )}
         </Card>
       </ScrollView>
+      </Animated.View>
     </SafeAreaView>
   );
 }
