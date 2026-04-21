@@ -321,8 +321,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   content: {
-    padding: Spacing.lg,
-    gap: Spacing.md,
+    padding: Spacing.xl,
+    gap: Spacing.lg,
   },
   title: {
     ...Typography.heading.xxl,
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
   subtitle: {
     ...Typography.body.lg,
     color: Colors.secondary[700],
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
   errorText: {
     ...Typography.body.sm,

@@ -174,7 +174,7 @@ function getPanelStyles() {
       marginBottom: Spacing.md,
     },
     content: {
-      gap: Spacing.sm,
+      gap: Spacing.xs,
     },
   });
 }
@@ -368,7 +368,7 @@ interface ActionButtonGroupProps {
 export function ActionButtonGroup({ buttons }: ActionButtonGroupProps) {
   const styles = StyleSheet.create({
     container: {
-      gap: Spacing.sm,
+      gap: Spacing.md,
     },
   });
   return (
@@ -443,9 +443,9 @@ function getActionButtonStyles() {
       textAlign: 'center',
     },
     buttonSubtext: {
+      ...Typography.body.sm,
       color: Colors.gray[100],
       marginTop: Spacing.xs,
-      fontSize: 14,
       textAlign: 'center',
     },
   });
